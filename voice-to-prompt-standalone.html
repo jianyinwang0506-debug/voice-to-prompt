@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice → Prompt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --border: #e8e8e8;
+      --text: #1a1a1a;
+      --muted: #888;
+      --light: #f5f5f5;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    header { text-align: center; margin-bottom: 40px; }
+    header h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; }
+    .subtitle { font-size: 14px; color: var(--muted); margin-top: 4px; font-weight: 300; }
+
+    /* Panels */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .panel-label {
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+      display: none;
+    }
+
+    .status-dot.active { display: block; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    /* Mic Button */
+    .voice-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .mic-button {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .mic-button:hover { border-color: var(--text); background: var(--light); }
+
+    .mic-button.listening {
+      border-color: #ef4444;
+      color: #ef4444;
+      animation: mic-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes mic-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.2); }
+      50% { box-shadow: 0 0 0 16px rgba(239,68,68,0); }
+    }
+
+    .mic-hint { font-size: 13px; color: var(--muted); }
+
+    .text-display {
+      min-height: 60px;
+      padding: 16px;
+      background: var(--light);
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .placeholder { color: var(--muted); font-style: italic; font-size: 14px; }
+
+    /* Action Bar */
+    .action-bar {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 16px 0;
+    }
+
+    .btn {
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: none;
+      font-family: inherit;
+    }
+
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-primary { background: var(--text); color: white; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.85; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover:not(:disabled) { background: var(--light); color: var(--text); }
+
+    /* Prompt Display */
+    .prompt-display {
+      min-height: 120px;
+      padding: 16px;
+      background: var(--light);
+      border-radius: 8px;
+    }
+
+    .prompt-display pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .btn-copy {
+      background: none;
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .btn-copy:hover { background: var(--light); color: var(--text); }
+
+    footer { text-align: center; margin-top: 40px; }
+    footer p { font-size: 12px; color: var(--muted); }
+
+    @media (max-width: 480px) {
+      .app { padding: 24px 16px; }
+      header h1 { font-size: 22px; }
+      .panel { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Voice → Prompt</h1>
+      <p class="subtitle">语音输入，智能生成 Prompt</p>
+    </header>
+
+    <main>
+      <!-- 语音输入区 -->
+      <section class="panel">
+        <div class="panel-header">
+          <span class="panel-label">语音输入</span>
+          <span class="status-dot" id="statusDot"></span>
+        </div>
+
+        <div class="voice-content">
+          <button class="mic-button" id="micBtn" onclick="toggleListening()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+          <span class="mic-hint" id="micHint">点击麦克风开始</span>
+        </div>
+
+        <div class="text-display" id="textDisplay">
+          <p class="placeholder">识别到的文字将显示在这里...</p>
+        </div>
+      </section>
+
+      <!-- 操作栏 -->
+      <div class="action-bar">
+        <button class="btn btn-primary" id="generateBtn" onclick="generatePrompt()" disabled>生成 Prompt ↓</button>
+        <button class="btn btn-ghost" id="clearBtn" onclick="clearAll()" disabled>清空</button>
+      </div>
+
+      <!-- Prompt 输出区 -->
+      <section class="panel">
+        <div class="panel-header">
+          <span class="panel-label">生成的 Prompt</span>
+          <button class="btn-copy" id="copyBtn" onclick="copyPrompt()" style="display:none">复制</button>
+        </div>
+        <div class="prompt-display" id="promptDisplay">
+          <p class="placeholder">生成的 Prompt 将显示在这里...</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>使用 Chrome 浏览器以获得最佳语音识别体验</p>
+    </footer>
+  </div>
+
+  <script>
+    let isListening = false
+    let recognition = null
+    let rawText = ''
+
+    function toggleListening() {
+      if (isListening) {
+        stopListening()
+      } else {
+        startListening()
+      }
+    }
+
+    function startListening() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (!SpeechRecognition) {
+        alert('你的浏览器不支持语音识别，请使用 Chrome 浏览器。')
+        return
+      }
+
+      rawText = ''
+      document.getElementById('textDisplay').innerHTML = '<p class="placeholder">正在准备...</p>'
+      document.getElementById('promptDisplay').innerHTML = '<p class="placeholder">生成的 Prompt 将显示在这里...</p>'
+      document.getElementById('copyBtn').style.display = 'none'
+
+      recognition = new SpeechRecognition()
+      recognition.lang = 'zh-CN'
+      recognition.continuous = true
+      recognition.interimResults = true
+
+      recognition.onresult = (event) => {
+        let finalTranscript = ''
+        let interimTranscript = ''
+
+        for (let i = 0; i < event.results.length; i++) {
+          const t = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            finalTranscript += t
+          } else {
+            interimTranscript += t
+          }
+        }
+
+        rawText = finalTranscript || interimTranscript
+        document.getElementById('textDisplay').innerHTML = `<p>${rawText}</p>`
+        document.getElementById('generateBtn').disabled = false
+        document.getElementById('clearBtn').disabled = false
+      }
+
+      recognition.onerror = (e) => {
+        console.error('语音识别错误:', e.error)
+        stopListening()
+      }
+
+      recognition.onend = () => stopListening()
+
+      recognition.start()
+      isListening = true
+      document.getElementById('micBtn').classList.add('listening')
+      document.getElementById('micHint').textContent = '正在聆听...'
+      document.getElementById('statusDot').classList.add('active')
+    }
+
+    function stopListening() {
+      if (recognition) recognition.stop()
+      isListening = false
+      document.getElementById('micBtn').classList.remove('listening')
+      document.getElementById('micHint').textContent = '点击麦克风开始'
+      document.getElementById('statusDot').classList.remove('active')
+    }
+
+    function generatePrompt() {
+      if (!rawText.trim()) return
+
+      const text = rawText.trim()
+      let prompt = ''
+
+      if (text.length < 20) {
+        prompt = `请帮我完成以下任务：\n\n${text}\n\n请提供详细、清晰的回答。`
+      } else {
+        prompt = `## 任务描述\n${text}\n\n## 要求\n- 请提供详细且有条理的回答\n- 如有多个步骤，请分步说明\n- 使用清晰简洁的语言`
+      }
+
+      document.getElementById('promptDisplay').innerHTML = `<pre>${prompt}</pre>`
+      document.getElementById('copyBtn').style.display = 'block'
+    }
+
+    function copyPrompt() {
+      const pre = document.querySelector('#promptDisplay pre')
+      if (!pre) return
+      navigator.clipboard.writeText(pre.textContent).then(() => {
+        const btn = document.getElementById('copyBtn')
+        btn.textContent = '✓ 已复制'
+        setTimeout(() => btn.textContent = '复制', 2000)
+      })
+    }
+
+    function clearAll() {
+      rawText = ''
+      document.getElementById('textDisplay').innerHTML = '<p class="placeholder">识别到的文字将显示在这里...</p>'
+      document.getElementById('promptDisplay').innerHTML = '<p class="placeholder">生成的 Prompt 将显示在这里...</p>'
+      document.getElementById('generateBtn').disabled = true
+      document.getElementById('clearBtn').disabled = true
+      document.getElementById('copyBtn').style.display = 'none'
+    }
+  </script>
+</body>
+</html>
